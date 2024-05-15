@@ -20,6 +20,7 @@
 #include "protocols/LayerShell.hpp"
 #include "protocols/XDGShell.hpp"
 #include "desktop/LayerSurface.hpp"
+#include "xwayland/XWayland.hpp"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -332,12 +333,9 @@ void CCompositor::cleanup() {
         m->state.commit();
     }
 
-    m_vMonitors.clear();
+    g_pXWayland.reset();
 
-    if (g_pXWaylandManager->m_sWLRXWayland) {
-        wlr_xwayland_destroy(g_pXWaylandManager->m_sWLRXWayland);
-        g_pXWaylandManager->m_sWLRXWayland = nullptr;
-    }
+    m_vMonitors.clear();
 
     wl_display_destroy_clients(g_pCompositor->m_sWLDisplay);
     removeAllSignals();
@@ -462,6 +460,9 @@ void CCompositor::initManagers(eManagersInitStage stage) {
 
             Debug::log(LOG, "Creating the CursorManager!");
             g_pCursorManager = std::make_unique<CCursorManager>();
+
+            Debug::log(LOG, "Starting XWayland");
+            g_pXWayland = std::make_unique<CXWayland>();
         } break;
         default: UNREACHABLE();
     }
@@ -707,7 +708,7 @@ PHLWINDOW CCompositor::vectorToWindowUnified(const Vector2D& pos, uint8_t proper
 
                     if (box.containsPoint(g_pPointerManager->position())) {
 
-                        if (w->m_bIsX11 && w->m_iX11Type == 2 && !wlr_xwayland_or_surface_wants_focus(w->m_uSurface.xwayland)) {
+                        if (w->m_bIsX11 && w->m_iX11Type == 2 && !w->m_pXWaylandSurface->wantsFocus()) {
                             // Override Redirect
                             return g_pCompositor->m_pLastWindow.lock(); // we kinda trick everything here.
                                 // TODO: this is wrong, we should focus the parent, but idk how to get it considering it's nullptr in most cases.
@@ -892,7 +893,7 @@ void CCompositor::focusWindow(PHLWINDOW pWindow, wlr_surface* pSurface) {
         return;
     }
 
-    if (pWindow && pWindow->m_bIsX11 && pWindow->m_iX11Type == 2 && !wlr_xwayland_or_surface_wants_focus(pWindow->m_uSurface.xwayland))
+    if (pWindow && pWindow->m_bIsX11 && pWindow->m_iX11Type == 2 && !pWindow->m_pXWaylandSurface->wantsFocus())
         return;
 
     g_pLayoutManager->getCurrentLayout()->bringWindowToTop(pWindow);
@@ -2219,7 +2220,7 @@ PHLWINDOW CCompositor::getX11Parent(PHLWINDOW pWindow) {
         if (!w->m_bIsX11)
             continue;
 
-        if (w->m_uSurface.xwayland == pWindow->m_uSurface.xwayland->parent)
+        if (w->m_pXWaylandSurface == pWindow->m_pXWaylandSurface->parent)
             return w;
     }
 

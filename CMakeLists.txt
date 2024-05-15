@@ -303,6 +303,7 @@ protocolNew("stable/tablet/tablet-v2.xml" "tablet-v2" false)
 protocolNew("stable/presentation-time/presentation-time.xml" "presentation-time" false)
 protocolNew("stable/xdg-shell/xdg-shell.xml" "xdg-shell" false)
 protocolNew("unstable/primary-selection/primary-selection-unstable-v1.xml" "primary-selection-unstable-v1" false)
+protocolNew("staging/xwayland-shell/xwayland-shell-v1.xml" "xwayland-shell-v1" false)
 
 protocolWayland()
 
